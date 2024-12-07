@@ -1,0 +1,6 @@
+privkey*
+*.pem
+
+# extra
+*.key
+*.csr
