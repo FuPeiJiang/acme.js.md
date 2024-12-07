@@ -25,7 +25,7 @@ export const ASN1 = {
         }
         function bufferToBigInt(buf) {
             const num = BigInt(`0x${buf.toString("hex")}`)
-            return buf[0] & 0x80 ? num - (1n << (BigInt(buf.length) << 3n)) : num
+            return buf[0] & 0x80 ? num - (1n << BigInt(buf.length << 3)) : num
             //2's complement:
             //MSB(leftmost bit) is supposed to be negative
             //BigInt parses MSB as positive, the rest of bits are parsed correctly as positive
