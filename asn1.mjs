@@ -105,7 +105,7 @@ export const ASN1 = {
             return {type:"buffer",tag,value:sub_buf}
         }
         function get(end) {
-            if (i + 2 >= end) {
+            if (i + 2 > end) { //tag + lengthLength is 2 bytes
                 return
             }
             const tag = buf[i]; ++i;
@@ -131,6 +131,10 @@ export const ASN1 = {
                 }
             }
 
+            if (tag & 0xc0) {
+                return
+            }
+
             switch (tag) {
                 case 0x30: case 0x31: return get_array(sub_end,tag)
                 case 0x2: return getInteger(sub_end,tag)
@@ -138,6 +142,7 @@ export const ASN1 = {
                 case 0x13: case 0xc: return get_string(sub_end,tag)
                 case 0x3: return getBitsString(sub_end,tag)
                 case 0x4: return getOctetString(sub_end,tag)
+                case 0x5: return {type:"NULL",tag}
                 default: debugger
             }
         }
@@ -221,6 +226,7 @@ export const ASN1 = {
                 case "OBJECT IDENTIFIER": return getPrimitive(obj,objectIdentifierToBuffer(obj.value))
                 case "string": return getPrimitive(obj,Buffer.from(obj.value))
                 case "buffer": return getPrimitive(obj,obj.value)
+                case "NULL": return getPrimitive(obj,Buffer.allocUnsafe(0))
                 case "ASN1": return {asn1Buf:obj.value, totalLength:obj.value.length}
                 default:debugger
             }
