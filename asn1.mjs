@@ -14,6 +14,9 @@ export const ASN1 = {
                 }
                 let length = 0
                 for (; i < lengthEnd; ++i) {
+                    if (length & 0xFF000000) { //would overflow
+                        return -1
+                    }
                     length = length << 8 | buf[i]
                 }
                 return length
@@ -104,8 +107,32 @@ export const ASN1 = {
             i = end
             return {type:"buffer",tag,value:sub_buf}
         }
+        function getUTCTime(end,tag) {
+            // YYMMDDhhmmssZ
+            if (end - i !== 13) {
+                return
+            }
+            if (!(/^\d{12}Z$/.test(buf.toString("utf8",i,end)))) {
+                return
+            }
+            //incorrectly assume 2000-2099
+            const date = new Date(Date.UTC(`20${buf.toString("utf8",i,i+2)}`,buf.toString("utf8",i+2,i+4)-1,...buf.toString("utf8",i+4,i+12).match(/../g)))
+            if (isNaN(date)) {
+                return
+            }
+            i = end
+            return {type:"UTCTime",tag,value:date}
+        }
+        function getBOOLEAN(end,tag) {
+            if (end - i !== 1) {
+                return
+            }
+            const bool = Boolean(buf[i])
+            i = end
+            return {type:"BOOLEAN",tag,value:bool}
+        }
         function get(end) {
-            if (i + 2 > end) { //tag + lengthLength is 2 bytes
+            if (end - i < 2) { //tag + lengthLength is 2 bytes
                 return
             }
             const tag = buf[i]; ++i;
@@ -143,6 +170,8 @@ export const ASN1 = {
                 case 0x3: return getBitsString(sub_end,tag)
                 case 0x4: return getOctetString(sub_end,tag)
                 case 0x5: return {type:"NULL",tag}
+                case 0x17: return getUTCTime(sub_end,tag)
+                case 0x1: return getBOOLEAN(sub_end,tag)
                 default: debugger
             }
         }
@@ -186,6 +215,10 @@ export const ASN1 = {
             write(arr[0] * 40 + arr[1])
             return buf.subarray(i + 1)
         }
+        function UTCTimeToBuffer(date) {
+            // YYMMDDhhmmZ
+            return Buffer.from(`${[date.getUTCFullYear() % 100,date.getUTCMonth()+1,date.getUTCDate(),date.getUTCHours(),date.getUTCMinutes(),date.getUTCSeconds()].map(v=>v.toString().padStart(2,"0")).join("")}Z`)
+        }
         function lengthToBuffer(length) {
             if (length <= 127) {
                 return Buffer.from([length])
@@ -227,6 +260,8 @@ export const ASN1 = {
                 case "string": return getPrimitive(obj,Buffer.from(obj.value))
                 case "buffer": return getPrimitive(obj,obj.value)
                 case "NULL": return getPrimitive(obj,Buffer.allocUnsafe(0))
+                case "UTCTime": return getPrimitive(obj,UTCTimeToBuffer(obj.value))
+                case "BOOLEAN": return getPrimitive(obj,Buffer.from([obj.value ? 0xFF : 0x00]))
                 case "ASN1": return {asn1Buf:obj.value, totalLength:obj.value.length}
                 default:debugger
             }
@@ -267,6 +302,9 @@ export const AlgorithmIdentifier = {
 export const OID = {
     commonName: "2.5.4.3",
     extensionRequest: "1.2.840.113549.1.9.14",
+    subjectKeyIdentifier: "2.5.29.14",
+    authorityKeyIdentifier: "2.5.29.35",
+    basicConstraints: "2.5.29.19",
     subjectAltName: "2.5.29.17",
     extKeyUsage: "2.5.29.37",
     serverAuth: "1.3.6.1.5.5.7.3.1",
