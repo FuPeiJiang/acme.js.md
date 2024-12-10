@@ -18,7 +18,7 @@ writeFileSync(`${IP}-key.pem`,SIGNATURE_KEY_PAIR.privateKey.export({format: "pem
 
 const subjectPublicKeyInfo = SIGNATURE_KEY_PAIR.publicKey.export({format: "der", type: "spki"})
 
-const keyIdentifier = hash("SHA1",ASN1.stringify(ASN1.parse(subjectPublicKeyInfo).arr[1].arr[0]),"buffer")
+const keyIdentifier = hash("SHA1",ASN1.parse(subjectPublicKeyInfo).arr[1].value,"buffer")
 
 const tbsCertificate = ASN1.stringify({
     type: "array",

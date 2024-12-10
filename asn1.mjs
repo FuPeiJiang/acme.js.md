@@ -82,30 +82,24 @@ export const ASN1 = {
             i = end
             return {type:"string",tag,value:str}
         }
-        function getBitsString(end,tag) {
+        function getBitString(end,tag) {
             const unusedBits = buf[i]; ++i
+            let got
             if (!unusedBits) {
-                const got = get_array(end,tag)
-                if (got) {
-                    got.unusedBits = unusedBits
-                    return got
-                }
+                got = get_array(end,tag)
             }
             const sub_buf = buf.subarray(i,end)
             i = end
-            return {type:"buffer",tag,unusedBits,value:sub_buf}
+            return {type:"buffer",tag,unusedBits,value:sub_buf, ...got}
         }
         function getOctetString(end,tag) {
             const got = get_array(end,tag)
-            if (got) {
-                return got
-            }
             const sub_buf = buf.subarray(i,end)
-            if (sub_buf.every(v=>(v>=0x20 && v<=0x7E))) {
+            if (!got && sub_buf.every(v=>(v>=0x20 && v<=0x7E))) {
                 return get_string(end,tag)
             }
             i = end
-            return {type:"buffer",tag,value:sub_buf}
+            return {type:"buffer",tag,value:sub_buf, ...got}
         }
         function getUTCTime(end,tag) {
             // YYMMDDhhmmssZ
@@ -167,7 +161,7 @@ export const ASN1 = {
                 case 0x2: return getInteger(sub_end,tag)
                 case 0x6: return getObjectIdentifier(sub_end,tag)
                 case 0x13: case 0xc: return get_string(sub_end,tag)
-                case 0x3: return getBitsString(sub_end,tag)
+                case 0x3: return getBitString(sub_end,tag)
                 case 0x4: return getOctetString(sub_end,tag)
                 case 0x5: return {type:"NULL",tag}
                 case 0x17: return getUTCTime(sub_end,tag)
