@@ -39,19 +39,19 @@ export const ASN1 = {
             i = end
             return {type:"INTEGER",tag,value:int}
         }
-        function get_array(end, tag) {
-            const iBak = i
+        function get_array(end, tag, canBeBuffer) {
+            const sub_buf = buf.subarray(i,end)
             const arr = []
             while (i < end) {
                 const got = get(end)
                 if (got) {
                     arr.push(got)
                 } else {
-                    i = iBak
-                    return
+                    i = end
+                    return canBeBuffer && {type:"buffer", tag, value:sub_buf}
                 }
             }
-            return {type:"array", tag, arr}
+            return {type:"array", tag, arr, value:sub_buf}
         }
         function getObjectIdentifier(end,tag) {
             const arr = []
@@ -84,22 +84,21 @@ export const ASN1 = {
         }
         function getBitString(end,tag) {
             const unusedBits = buf[i]; ++i
-            let got
             if (!unusedBits) {
-                got = get_array(end,tag)
+                const got = get_array(end,tag,true)
+                got.unusedBits = unusedBits
+                return got
             }
             const sub_buf = buf.subarray(i,end)
             i = end
-            return {type:"buffer",tag,unusedBits,value:sub_buf, ...got}
+            return {type:"buffer",tag,unusedBits,value:sub_buf}
         }
         function getOctetString(end,tag) {
-            const got = get_array(end,tag)
-            const sub_buf = buf.subarray(i,end)
-            if (!got && sub_buf.every(v=>(v>=0x20 && v<=0x7E))) {
-                return get_string(end,tag)
+            const got = get_array(end,tag,true)
+            if (got.type === "buffer" && got.value.every(v=>(v>=0x20 && v<=0x7E))) {
+                return {type:"string",tag,value:got.value.toString()}
             }
-            i = end
-            return {type:"buffer",tag,value:sub_buf, ...got}
+            return got
         }
         function getUTCTime(end,tag) {
             // YYMMDDhhmmssZ
@@ -294,6 +293,17 @@ export const AlgorithmIdentifier = {
 }
 
 export const OID = {
+    data: "1.2.840.113549.1.7.1",
+    encryptedData: "1.2.840.113549.1.7.6",
+    pkcs8ShroudedKeyBag: "1.2.840.113549.1.12.10.1.2",
+    certBag: "1.2.840.113549.1.12.10.1.3",
+    x509Certificate: "1.2.840.113549.1.9.22.1",
+    localKeyId: "1.2.840.113549.1.9.21",
+    PBES2: "1.2.840.113549.1.5.13",
+    PBKDF2: "1.2.840.113549.1.5.12",
+    hmacWithSHA256: "1.2.840.113549.2.9",
+    aes256_CBC: "2.16.840.1.101.3.4.1.42",
+    sha256: "2.16.840.1.101.3.4.2.1",
     commonName: "2.5.4.3",
     extensionRequest: "1.2.840.113549.1.9.14",
     subjectKeyIdentifier: "2.5.29.14",
